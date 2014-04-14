@@ -92,19 +92,13 @@ class Unoconv(Thumbnailer):
             page=page, output_format=output_format)
 
 
-class ImageMagick(Thumbnailer):
-    executable = '/usr/bin/convert'
+class MultifileOutputThumbnailer(Thumbnailer):
+    output_pattern = None
 
     def _args(self, source_filename, output_filename):
-        return (
-            self.executable,
-            source_filename,
-            output_filename,
-        )
+        raise NotImplementedError()
 
     def _find_output_filename(self, temp_dir):
-        # some image formats might contain multiple pages and/or layers and
-        # ImageMagick will create multiple output files in that case.
         # As a rough heuristic we'll pick the biggest one which probably
         # contains the most interesting data.
         pathname = lambda filename: os.path.join(temp_dir, filename)
@@ -117,7 +111,7 @@ class ImageMagick(Thumbnailer):
     def thumbnail(self, source_filename, dimensions=None, output_format='jpg'):
         try:
             temp_dir = tempfile.mkdtemp()
-            temp_file = os.path.join(temp_dir, 'output.'+output_format)
+            temp_file = os.path.join(temp_dir, self.output_pattern+output_format)
             run(self._args(source_filename, temp_file))
             output_filename = self._find_output_filename(temp_dir)
             if output_filename is None:
@@ -125,6 +119,36 @@ class ImageMagick(Thumbnailer):
             return BytesIO(file(output_filename, 'rb').read())
         finally:
             shutil.rmtree(temp_dir, ignore_errors=True)
+
+
+class ImageMagick(MultifileOutputThumbnailer):
+    # some image formats might contain multiple pages and/or layers and
+    # ImageMagick will create multiple output files in that case.
+    executable = '/usr/bin/convert'
+    output_pattern = 'output.'
+
+    def _args(self, source_filename, output_filename):
+        return (
+            self.executable,
+            source_filename,
+            output_filename,
+        )
+
+
+class ffmpeg(MultifileOutputThumbnailer):
+    executable = '/usr/bin/ffmpeg'
+    output_pattern = 'output%02d.'
+
+    def _args(self, source_filename, output_filename):
+        return (
+            self.executable,
+            '-ss', '3',
+            '-i', source_filename,
+            '-frames:v', '5',
+            '-r', '1/10',
+            '-vsync', 'vfr',
+            output_filename,
+        )
 
 
 thumbnailers = {
@@ -142,6 +166,11 @@ thumbnailers = {
 
     'image/vnd.adobe.photoshop': ImageMagick,
     'image/tiff': ImageMagick,
+
+    # videos
+    'video/mp4': ffmpeg, # mp4, m4v
+    'video/webm': ffmpeg,
+    'video/x-ms-wmv': ffmpeg, # wmv
 }
 
 def thumbnailer_for(mime_type):
