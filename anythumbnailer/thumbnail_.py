@@ -1,8 +1,11 @@
 
 from __future__ import absolute_import
 
+from io import BytesIO
 import os
 import mimetypes
+import shutil
+import tempfile
 
 from .sh_utils import pipe_with_input, run
 
@@ -89,6 +92,41 @@ class Unoconv(Thumbnailer):
             page=page, output_format=output_format)
 
 
+class ImageMagick(Thumbnailer):
+    executable = '/usr/bin/convert'
+
+    def _args(self, source_filename, output_filename):
+        return (
+            self.executable,
+            source_filename,
+            output_filename,
+        )
+
+    def _find_output_filename(self, temp_dir):
+        # some image formats might contain multiple pages and/or layers and
+        # ImageMagick will create multiple output files in that case.
+        # As a rough heuristic we'll pick the biggest one which probably
+        # contains the most interesting data.
+        pathname = lambda filename: os.path.join(temp_dir, filename)
+        file_paths = map(pathname, os.listdir(temp_dir))
+        if len(file_paths) == 0:
+            return None
+        files_with_size = [(os.stat(path).st_size, path) for path in file_paths]
+        return sorted(files_with_size)[-1][1]
+
+    def thumbnail(self, source_filename, dimensions=None, output_format='jpg'):
+        try:
+            temp_dir = tempfile.mkdtemp()
+            temp_file = os.path.join(temp_dir, 'output.'+output_format)
+            run(self._args(source_filename, temp_file))
+            output_filename = self._find_output_filename(temp_dir)
+            if output_filename is None:
+                return None
+            return BytesIO(file(output_filename, 'rb').read())
+        finally:
+            shutil.rmtree(temp_dir, ignore_errors=True)
+
+
 thumbnailers = {
     'image/x-portable-pixmap': PNMToImage,
     'application/pdf': Poppler,
@@ -101,6 +139,9 @@ thumbnailers = {
     'application/vnd.ms-excel': Unoconv,
     'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': Unoconv,
     'application/vnd.ms-excel.sheet.macroEnabled.12': Unoconv, # with macros
+
+    'image/vnd.adobe.photoshop': ImageMagick,
+    'image/tiff': ImageMagick,
 }
 
 def thumbnailer_for(mime_type):
