@@ -96,6 +96,11 @@ thumbnailers = {
     'application/vnd.openxmlformats-officedocument.presentationml.presentation': Unoconv, # pptx
     'application/msword': Unoconv, # doc
     'application/vnd.ms-powerpoint': Unoconv, # ppt
+
+    # xls(x/m)
+    'application/vnd.ms-excel': Unoconv,
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': Unoconv,
+    'application/vnd.ms-excel.sheet.macroEnabled.12': Unoconv, # with macros
 }
 
 def thumbnailer_for(mime_type):
