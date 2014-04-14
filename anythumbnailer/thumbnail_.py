@@ -82,8 +82,8 @@ class Unoconv(Thumbnailer):
             source_filename
         )
 
-    def thumbnail(self, source_filename_or_fp, dimensions=None, page=1, output_format='jpg'):
-        pdf_fp = run(self._args(source_filename_or_fp))
+    def thumbnail(self, source_filename, dimensions=None, page=1, output_format='jpg'):
+        pdf_fp = run(self._args(source_filename))
         pdf_thumbnailer = thumbnailer_for('application/pdf')
         return pdf_thumbnailer.thumbnail(pdf_fp, dimensions=dimensions,
             page=page, output_format=output_format)
