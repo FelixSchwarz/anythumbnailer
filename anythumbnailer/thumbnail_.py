@@ -2,8 +2,9 @@
 from __future__ import absolute_import
 
 from io import BytesIO
-import os
 import mimetypes
+import os
+import re
 import shutil
 import tempfile
 
@@ -165,28 +166,28 @@ class ffmpeg(FileOutputThumbnailer):
 thumbnailers = {
     'image/x-portable-pixmap': PNMToImage,
     'application/pdf': Poppler,
-    'application/vnd.openxmlformats-officedocument.wordprocessingml.document': Unoconv, # docx
-    'application/vnd.openxmlformats-officedocument.presentationml.presentation': Unoconv, # pptx
     'application/msword': Unoconv, # doc
-    'application/vnd.ms-powerpoint': Unoconv, # ppt
-
-    # xls(x/m)
-    'application/vnd.ms-excel': Unoconv,
-    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': Unoconv,
-    'application/vnd.ms-excel.sheet.macroEnabled.12': Unoconv, # with macros
+    re.compile('^'+re.escape('application/vnd.ms-')): Unoconv, # xls/ppt
+    re.compile('^'+re.escape('application/vnd.openxmlformats-officedocument.')): Unoconv, # docx, pptx, xlsx
+    'application/vnd.ms-excel.sheet.macroEnabled.12': Unoconv, # xlsm: xlsx with macros
 
     'image/vnd.adobe.photoshop': ImageMagick,
     'image/tiff': ImageMagick,
 
-    # videos
-    'video/mp4': ffmpeg, # mp4, m4v
-    'video/webm': ffmpeg,
-    'video/x-ms-wmv': ffmpeg, # wmv
+    re.compile('^video/'): ffmpeg, # videos
 }
 
 def thumbnailer_for(mime_type):
     thumbnailer = thumbnailers.get(mime_type)
-    if (thumbnailer is None) or (not thumbnailer().is_available()):
+    if thumbnailer is None:
+        regex_thumbnailers = filter(lambda key: not isinstance(key, basestring), thumbnailers)
+        for regex in regex_thumbnailers:
+            if regex.match(mime_type):
+                thumbnailer = thumbnailers[regex]
+                break
+        else:
+            return None
+    if not thumbnailer().is_available():
         return None
     return thumbnailer()
 
