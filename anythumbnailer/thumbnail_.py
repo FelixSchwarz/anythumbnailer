@@ -54,25 +54,43 @@ class PNMToImage(Thumbnailer):
         return run(self.pipe_args(**kwargs), input_=source_filename_or_fp)
 
 
+# pdftoppm 0.12.4 (CentOS 6.5) bails out if the PDF contents are transferred
+# via stdin. pdftoppm 0.24.3 (Fedora 20) works fine though...
 class Poppler(Thumbnailer):
     pdf_to_ppm = '/usr/bin/pdftoppm'
     executables = (pdf_to_ppm, ) + PNMToImage.executables
 
-    def _args(self, dimensions=None, page=1):
+    def _args(self, source_filename=None, dimensions=None, page=1):
         assert dimensions is None
-        return (
+        command = (
             self.pdf_to_ppm,
                 '-scale-to', str(2048),
                 '-f', str(page),
-                '-l', str(page)
+                '-l', str(page),
         )
+        if source_filename is not None:
+            command += (source_filename, )
+        return command
+
 
     def thumbnail(self, source_filename_or_fp, dimensions=None, page=1, output_format='jpg'):
         assert dimensions is None
-        pdftoppm_args = self._args(dimensions=dimensions, page=page)
-        pnm_converter_args = PNMToImage().pipe_args(dimensions=dimensions, output_format=output_format)
-        thumbnail = pipe_with_input(source_filename_or_fp, pdftoppm_args, pnm_converter_args)
-        return thumbnail
+        temp_fp = None
+        try:
+            if not hasattr(source_filename_or_fp, 'read'):
+                filename = source_filename_or_fp
+            else:
+                temp_fp = tempfile.NamedTemporaryFile(delete=True)
+                temp_fp.write(source_filename_or_fp.read())
+                temp_fp.flush()
+                filename = temp_fp.name
+            pdftoppm_args = self._args(source_filename=filename, dimensions=dimensions, page=page)
+            pnm_fp = run(pdftoppm_args)
+            pnm_converter_args = PNMToImage().pipe_args(dimensions=dimensions, output_format=output_format)
+            return run(pnm_converter_args, input_=pnm_fp)
+        finally:
+            if temp_fp is not None:
+                temp_fp.close()
 
 
 class FileOutputThumbnailer(Thumbnailer):
