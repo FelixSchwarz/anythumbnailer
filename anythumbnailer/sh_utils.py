@@ -13,7 +13,8 @@ def run(command_args, input_=None):
         input_ = input_.read()
     process = subprocess.Popen(command_args, stdout=subprocess.PIPE, stdin=stdin)
     stdout_data, stderr_data = process.communicate(input=input_)
-    assert process.returncode == 0
+    if process.returncode != 0:
+        return None
     return BytesIO(stdout_data)
 
 def run_pipe(input_=None, *commands):
@@ -27,6 +28,8 @@ def run_pipe(input_=None, *commands):
     last_output_data = input_
     for command_args in commands:
         last_output_data = run(command_args, last_output_data)
+        if last_output_data is None:
+            break
     return last_output_data
 
 def pipe_with_input(filename_or_fp, *commands):

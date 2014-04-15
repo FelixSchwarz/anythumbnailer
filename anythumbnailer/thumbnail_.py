@@ -8,7 +8,7 @@ import re
 import shutil
 import tempfile
 
-from .sh_utils import pipe_with_input, run
+from .sh_utils import run
 
 __all__ = ['create_thumbnail']
 
@@ -86,6 +86,8 @@ class Poppler(Thumbnailer):
                 filename = temp_fp.name
             pdftoppm_args = self._args(source_filename=filename, dimensions=dimensions, page=page)
             pnm_fp = run(pdftoppm_args)
+            if pnm_fp is None:
+                return None
             pnm_converter_args = PNMToImage().pipe_args(dimensions=dimensions, output_format=output_format)
             return run(pnm_converter_args, input_=pnm_fp)
         finally:
@@ -112,10 +114,13 @@ class FileOutputThumbnailer(Thumbnailer):
         return sorted(files_with_size)[-1][1]
 
     def thumbnail(self, source_filename, dimensions=None, output_format='jpg'):
+        assert dimensions is None
         try:
             temp_dir = tempfile.mkdtemp()
             temp_file = os.path.join(temp_dir, self.output_pattern+output_format)
-            run(self._args(source_filename, temp_file))
+            output_fp = run(self._args(source_filename, temp_file))
+            if output_fp is None:
+                return None
             output_filename = self._find_output_filename(temp_dir, output_format)
             if output_filename is None:
                 return None
@@ -146,6 +151,8 @@ class Unoconv(FileOutputThumbnailer):
     def thumbnail(self, source_filename, dimensions=None, page=1, output_format='jpg'):
         pdf_fp = super(Unoconv, self).thumbnail(source_filename, dimensions=dimensions,
             output_format='pdf')
+        if pdf_fp is None:
+            return None
         pdf_thumbnailer = thumbnailer_for('application/pdf')
         return pdf_thumbnailer.thumbnail(pdf_fp, dimensions=dimensions,
             page=page, output_format=output_format)
