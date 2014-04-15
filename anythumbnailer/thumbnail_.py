@@ -74,35 +74,19 @@ class Poppler(Thumbnailer):
         return thumbnail
 
 
-class Unoconv(Thumbnailer):
-    executable = '/usr/bin/unoconv'
-
-    def _args(self, source_filename):
-        return (
-            self.executable,
-            '-f', 'pdf',
-            '--stdout',
-            source_filename
-        )
-
-    def thumbnail(self, source_filename, dimensions=None, page=1, output_format='jpg'):
-        pdf_fp = run(self._args(source_filename))
-        pdf_thumbnailer = thumbnailer_for('application/pdf')
-        return pdf_thumbnailer.thumbnail(pdf_fp, dimensions=dimensions,
-            page=page, output_format=output_format)
-
-
-class MultifileOutputThumbnailer(Thumbnailer):
+class FileOutputThumbnailer(Thumbnailer):
     output_pattern = None
 
     def _args(self, source_filename, output_filename):
         raise NotImplementedError()
 
-    def _find_output_filename(self, temp_dir):
+    def _find_output_filename(self, temp_dir, output_format):
         # As a rough heuristic we'll pick the biggest one which probably
         # contains the most interesting data.
-        pathname = lambda filename: os.path.join(temp_dir, filename)
-        file_paths = map(pathname, os.listdir(temp_dir))
+        file_paths = []
+        for filename in os.listdir(temp_dir):
+            if filename.endswith('.'+output_format):
+                file_paths.append(os.path.join(temp_dir, filename))
         if len(file_paths) == 0:
             return None
         files_with_size = [(os.stat(path).st_size, path) for path in file_paths]
@@ -113,7 +97,7 @@ class MultifileOutputThumbnailer(Thumbnailer):
             temp_dir = tempfile.mkdtemp()
             temp_file = os.path.join(temp_dir, self.output_pattern+output_format)
             run(self._args(source_filename, temp_file))
-            output_filename = self._find_output_filename(temp_dir)
+            output_filename = self._find_output_filename(temp_dir, output_format)
             if output_filename is None:
                 return None
             return BytesIO(file(output_filename, 'rb').read())
@@ -121,7 +105,34 @@ class MultifileOutputThumbnailer(Thumbnailer):
             shutil.rmtree(temp_dir, ignore_errors=True)
 
 
-class ImageMagick(MultifileOutputThumbnailer):
+class Unoconv(FileOutputThumbnailer):
+    executable = '/usr/bin/unoconv'
+    output_pattern = 'document.'
+
+    def _args(self, source_filename, output_filename):
+        return (
+            self.executable,
+            '-f', 'pdf',
+            # it seems that LibreOffice 4.0/4.1 has a bug somewhere in pyuno
+            # (or the LibreOffice core itself) when it should output to stdout:
+            # https://github.com/dagwieers/unoconv/issues/66
+            # http://thread.gmane.org/gmane.linux.debian.devel.bugs.general/1074109/focus=1074227
+            # falling back to a temporary file which (strangely) works.
+            # "--stdout" works fine in LibreOffice 4.2
+            # '--stdout',
+            '--output='+output_filename,
+            source_filename,
+        )
+
+    def thumbnail(self, source_filename, dimensions=None, page=1, output_format='jpg'):
+        pdf_fp = super(Unoconv, self).thumbnail(source_filename, dimensions=dimensions,
+            output_format='pdf')
+        pdf_thumbnailer = thumbnailer_for('application/pdf')
+        return pdf_thumbnailer.thumbnail(pdf_fp, dimensions=dimensions,
+            page=page, output_format=output_format)
+
+
+class ImageMagick(FileOutputThumbnailer):
     # some image formats might contain multiple pages and/or layers and
     # ImageMagick will create multiple output files in that case.
     executable = '/usr/bin/convert'
@@ -135,7 +146,7 @@ class ImageMagick(MultifileOutputThumbnailer):
         )
 
 
-class ffmpeg(MultifileOutputThumbnailer):
+class ffmpeg(FileOutputThumbnailer):
     executable = '/usr/bin/ffmpeg'
     output_pattern = 'output%02d.'
 
