@@ -9,10 +9,15 @@ __all__ = ['run', 'run_pipe', 'pipe_with_input']
 
 def run(command_args, input_=None):
     stdin = subprocess.PIPE if (input_ is not None) else None
-    if hasattr(input_, 'read'):
-        input_ = input_.read()
+    input_data = input_
+    if isinstance(input_data, basestring):
+        input_data = open(input_, 'rb')
+    if hasattr(input_data, 'read'):
+        input_data = input_data.read()
     process = subprocess.Popen(command_args, stdout=subprocess.PIPE, stdin=stdin)
-    stdout_data, stderr_data = process.communicate(input=input_)
+    stdout_data, stderr_data = process.communicate(input=input_data)
+    if hasattr(input_, 'close'):
+        input_.close()
     if process.returncode != 0:
         return None
     return BytesIO(stdout_data)
