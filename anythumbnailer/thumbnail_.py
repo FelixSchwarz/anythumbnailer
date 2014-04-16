@@ -34,7 +34,7 @@ class Thumbnailer(object):
                 return False
         return True
 
-    def thumbnail(self, source_filename_or_fp, **kwargs):
+    def thumbnail(self, source_filename_or_fp, dimensions=None, **kwargs):
         raise NotImplementedError()
 
 
