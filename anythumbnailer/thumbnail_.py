@@ -188,7 +188,30 @@ class ffmpeg(FileOutputThumbnailer):
         )
 
 
+class PS2PDF(Thumbnailer):
+    executable = '/usr/bin/ps2pdf'
+
+    def pipe_args(self, dimensions=None):
+        assert dimensions is None
+        return (
+            self.executable,
+            '-',
+        )
+
+    def thumbnail(self, source_filename_or_fp, dimensions=None, output_format='jpg'):
+        pdf_fp = run(self.pipe_args(dimensions=dimensions), input_=source_filename_or_fp)
+        if pdf_fp is None:
+            return None
+        elif output_format == 'pdf':
+            return pdf_fp
+        pdf_thumbnailer = thumbnailer_for('application/pdf')
+        return pdf_thumbnailer.thumbnail(pdf_fp, dimensions=dimensions,
+            output_format=output_format)
+
+
+
 thumbnailers = {
+    'application/postscript': PS2PDF,
     'application/pdf': Poppler,
 
     # "Office" documents
