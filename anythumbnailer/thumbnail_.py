@@ -16,6 +16,9 @@ __all__ = ['create_thumbnail']
 def create_thumbnail(source_filename, dimensions=None, **kwargs):
     assert dimensions is None
     mime_type, encoding = mimetypes.guess_type(source_filename, strict=False)
+    if (mime_type is None) and ('.' in source_filename):
+        extension = source_filename.rsplit('.', 1)[-1].lower()
+        mime_type = mimetypes_by_extension.get(extension)
     if mime_type is None:
         return None
     thumbnailer = thumbnailer_for(mime_type)
@@ -237,6 +240,12 @@ thumbnailers = {
     # two so we just try ffmpeg for both. It'll just fail for audio but that
     # shouldn't do any harm.
     'audio/ogg': ffmpeg,
+}
+
+# Python's mimetypes library does not detect all file formats so we have a
+# fallback to "detect" a mime type based on the file extension.
+mimetypes_by_extension = {
+    'f4v': 'video/x-flv',
 }
 
 def thumbnailer_for(mime_type):
