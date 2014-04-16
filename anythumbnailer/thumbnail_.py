@@ -16,6 +16,8 @@ __all__ = ['create_thumbnail']
 def create_thumbnail(source_filename, dimensions=None, **kwargs):
     assert dimensions is None
     mime_type, encoding = mimetypes.guess_type(source_filename, strict=False)
+    if mime_type is None:
+        return None
     thumbnailer = thumbnailer_for(mime_type)
     if thumbnailer is None:
         return None
