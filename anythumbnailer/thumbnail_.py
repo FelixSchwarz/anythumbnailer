@@ -230,6 +230,11 @@ thumbnailers = {
     re.compile('^image/'): ImageMagick,
 
     re.compile('^video/'): ffmpeg, # videos
+    # ogg is a container format both for audio (Ogg Vorbis) and videos (Ogg
+    # Theora). Python's mimetypes library does not differentiate between these
+    # two so we just try ffmpeg for both. It'll just fail for audio but that
+    # shouldn't do any harm.
+    'audio/ogg': ffmpeg,
 }
 
 def thumbnailer_for(mime_type):
