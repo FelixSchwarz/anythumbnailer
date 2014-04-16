@@ -196,8 +196,10 @@ thumbnailers = {
     re.compile('^'+re.escape('application/vnd.openxmlformats-officedocument.')): Unoconv, # docx, pptx, xlsx
     'application/vnd.ms-excel.sheet.macroEnabled.12': Unoconv, # xlsm: xlsx with macros
 
-    'image/vnd.adobe.photoshop': ImageMagick,
-    'image/tiff': ImageMagick,
+    # all image-like formats, also uncommon ones like
+    #    .psd -> image/vnd.adobe.photoshop
+    #    .tga -> image/x-targa
+    re.compile('^image/'): ImageMagick,
 
     re.compile('^video/'): ffmpeg, # videos
 }
