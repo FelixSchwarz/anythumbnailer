@@ -189,12 +189,17 @@ class ffmpeg(FileOutputThumbnailer):
 
 
 thumbnailers = {
-    'image/x-portable-pixmap': PNMToImage,
     'application/pdf': Poppler,
+
+    # "Office" documents
     'application/msword': Unoconv, # doc
     re.compile('^'+re.escape('application/vnd.ms-')): Unoconv, # xls/ppt
     re.compile('^'+re.escape('application/vnd.openxmlformats-officedocument.')): Unoconv, # docx, pptx, xlsx
     'application/vnd.ms-excel.sheet.macroEnabled.12': Unoconv, # xlsm: xlsx with macros
+
+    # specific mime types have precedence over regexes so PNMToImage will be
+    # preferred over ImageMagick for pnm files.
+    'image/x-portable-pixmap': PNMToImage,
 
     # all image-like formats, also uncommon ones like
     #    .psd -> image/vnd.adobe.photoshop
