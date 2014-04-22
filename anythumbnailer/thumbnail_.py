@@ -184,6 +184,7 @@ class ffmpeg(FileOutputThumbnailer):
     def _args(self, source_filename, output_filename):
         return (
             self.executable,
+            '-v', 'quiet',
             '-ss', '3',
             '-i', source_filename,
             '-frames:v', '5',
